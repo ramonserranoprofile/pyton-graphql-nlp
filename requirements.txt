@@ -1,0 +1,9 @@
+fastapi[standard]
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic
+python-dotenv
+strawberry-graphql
+spacy
