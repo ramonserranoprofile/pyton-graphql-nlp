@@ -1,7 +1,6 @@
 import strawberry
 from typing import List, Optional
 from app.data.models.graphql_model import ItemType, load_csv_data
-import requests
 import os
 
 # Cargar los datos desde el CSV
@@ -22,6 +21,17 @@ class ItemFilter:
     CategoriaPrincipal: Optional[str] = None
 
 
+# Función para verificar si al menos una palabra coincide
+def matches_any_keyword(text: str, keywords: str) -> bool:
+    """
+    Verifica si al menos una palabra clave está presente en el texto.
+    """
+    if not keywords:
+        return True  # Si no hay palabras clave, no se filtra
+    text_lower = text.lower()
+    return any(keyword.lower() in text_lower for keyword in keywords.split())
+
+
 # Resolver de GraphQL
 @strawberry.type
 class Query:
@@ -38,56 +48,30 @@ class Query:
             filtered_items = [
                 item
                 for item in filtered_items
-                if filters.NombreProducto.lower()
-                in item.desc_ga_nombre_producto_1.lower()
+                if matches_any_keyword(
+                    item.desc_ga_nombre_producto_1, filters.NombreProducto
+                )
             ]
 
         if filters.MarcaProducto:
             filtered_items = [
                 item
                 for item in filtered_items
-                if filters.MarcaProducto.lower() in item.desc_ga_marca_producto.lower()
+                if matches_any_keyword(
+                    item.desc_ga_marca_producto, filters.MarcaProducto
+                )
             ]
 
         if filters.CategoriaPrincipal:
             filtered_items = [
                 item
                 for item in filtered_items
-                if filters.CategoriaPrincipal.lower()
-                in item.desc_categoria_prod_principal.lower()
+                if matches_any_keyword(
+                    item.desc_categoria_prod_principal, filters.CategoriaPrincipal
+                )
             ]
 
         return filtered_items
-
-
-def execute_graphql_query(filters: dict) -> dict:
-    """
-    Ejecuta una consulta GraphQL usando los filtros proporcionados.
-    """
-    query = """
-    query GetProducts($filters: ItemFilter) {
-        items(filters: $filters) {
-            idTieFechaValor
-            idCliCliente
-            descGaNombreProducto1
-            descGaMarcaProducto
-            descCategoriaProdPrincipal
-            descGaCodProducto
-            descGaSkuProducto1
-        }
-    }
-    """
-
-    variables = {"filters": filters}
-
-    response = requests.post(
-        "http://127.0.0.1:8080/api/query", json={"query": query, "variables": variables}
-    ).json()
-
-    if "errors" in response:
-        raise Exception(f"Error en la consulta GraphQL: {response['errors']}")
-
-    return response.get("data", {})
 
 
 # Crear el esquema GraphQL

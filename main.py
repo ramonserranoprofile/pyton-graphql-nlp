@@ -2,15 +2,18 @@ from fastapi import FastAPI
 from app.data.routers.graphql_router import graphql_router
 from app.data.routers.nlp_router import nlp_router
 # from app.auth.controllers.auth_router import auth_router
-# from app.documentation.docs import swagger_ui
+from app.documentation.docs import custom_openapi
 
-app = FastAPI(title="Python GraphQL & NLP API")
+app = FastAPI(title="Python GraphQL & DeepSeek NLP implementation API")
+
+# Aplicar el esquema de documentación de API's de OpenAPI 3.0 personalizado
+app.openapi = lambda: custom_openapi(app)
 
 # Registrar los routers
 app.include_router(graphql_router, prefix="/api")
 app.include_router(nlp_router, prefix="/api")
 # app.include_router(auth_router, prefix="/api")
-# app.include_router(swagger_ui, prefix="/docs")
+
 
 if __name__ == "__main__":
     import uvicorn
