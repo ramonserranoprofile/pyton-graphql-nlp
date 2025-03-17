@@ -202,14 +202,18 @@ services:
 </table>
 
 # Postman Post Request to /query
-<tr>
-    <td><img src="./app/static/images/Captura de pantalla 2025-03-17 100545.png" width="390"></td>        
+<table>
+  <tr>
+    <td><img src="./app/static/images/Captura de pantalla 2025-03-17 100545.png" width="195"></td>        
   </tr>
+</table>
 
 # Postman Post Request to /search
-<tr>
-    <td><img src="./app/static/images/Captura de pantalla 2025-03-17 094621.png" width="390"></td>        
+<table>
+  <tr>
+    <td><img src="./app/static/images/Captura de pantalla 2025-03-17 094621.png" width="195"></td>        
   </tr>
+</table>
 
 # OpenAPI 3.0 Documentation "/docs" & "/redoc" Endpoints
 <table>
@@ -217,3 +221,4 @@ services:
     <td><img src="./app/static/images/Captura de pantalla 2025-03-17 094248.png" width="195"></td>
     <td><img src="./app/static/images/Captura de pantalla 2025-03-17 094342.png" width="195"></td>    
   </tr>
+</table>
