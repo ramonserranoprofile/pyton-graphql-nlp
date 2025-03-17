@@ -34,6 +34,7 @@ class SearchResponse(BaseModel):
 
 @nlp_router.post(
     "/search",
+    response_model=SearchResponse,
     tags=["FastAPI+NLP(DeepSeek)"],
     summary="Search products using NLP  Gemini 2.0",
     description="Process the text, extract entities with Gemini 2.0, and finally execute a GraphQL query at '/query' to search for products.",

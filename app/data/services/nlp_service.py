@@ -2,7 +2,7 @@ from openai import OpenAI
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 import asyncio
-
+from typing import List, Dict, Optional
 import os
 import json
 
@@ -31,7 +31,7 @@ def extract_entities_with_deepseek(text: str) -> dict:
         },
         extra_body={},
         model="google/gemini-2.0-flash-lite-preview-02-05:free",
-        response_format= {"type": "json_object"},
+        response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -62,9 +62,25 @@ def extract_entities_with_deepseek(text: str) -> dict:
         return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
 
 
-async def execute_graphql_query(filters):
-    transport = AIOHTTPTransport(url="http://127.0.0.1:8080/api/query")
+async def execute_graphql_query(filters: Dict) -> Optional[List]:
+    """
+    Ejecuta una consulta GraphQL con los filtros proporcionados.
+    """
+    # endpoint GraphQL
+    url = "http://127.0.0.1:8080/api/query"
+
+    # Auth Token 
+    token = "token_here"
+
+    # Configurate transport with auth token
+    transport = AIOHTTPTransport(
+        url=url,
+        #headers={"Authorization": f"Bearer {token}"},  # Incluir el token en los headers
+    )
+
+    # Create client GraphQL
     async with Client(transport=transport) as session:
+        # Define GraphQL query
         query = gql(
             """
             query GetProducts($filters: ItemFilter) {
@@ -78,10 +94,20 @@ async def execute_graphql_query(filters):
                     descGaSkuProducto1
                 }
             }
-        """
+            """
         )
-        result = await session.execute(query, variable_values={"filters": filters})
-        return result.get("items", [])
+
+        # Run query with data filters
+        try:
+            result = await session.execute(query, variable_values={"filters": filters})
+            return result.get("items", [])
+        except Exception as e:
+            if "401" in str(e):
+                raise Exception(
+                    "Error de autenticación: Credenciales inválidas o faltantes."
+                )
+            else:
+                raise Exception(f"Error al ejecutar la consulta GraphQL: {e}")
 
 
 def format_response_as_table(items: list) -> str:
