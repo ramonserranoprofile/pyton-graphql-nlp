@@ -13,7 +13,7 @@ file_path = os.path.join(
 items = load_csv_data(file_path)
 
 
-# Definir el tipo de entrada para los filtros
+# Define input data type to filters
 @strawberry.input
 class ItemFilter:
     NombreProducto: Optional[str] = None
@@ -21,27 +21,27 @@ class ItemFilter:
     CategoriaPrincipal: Optional[str] = None
 
 
-# Función para verificar si al menos una palabra coincide
+# Function to check if at least one word matches
 def matches_any_keyword(text: str, keywords: str) -> bool:
     """
     Verifica si al menos una palabra clave está presente en el texto.
     """
     if not keywords:
-        return True  # Si no hay palabras clave, no se filtra
+        return True  # If there are no keywords, no filtering is applied.
     text_lower = text.lower()
     return any(keyword.lower() in text_lower for keyword in keywords.split())
 
 
-# Resolver de GraphQL
+# GraphQL Resolver
 @strawberry.type
 class Query:
     @strawberry.field
     def items(self, filters: Optional[ItemFilter] = None) -> List[ItemType]:
-        # Si no se proporcionan filtros, devolver todos los productos
+        # If no filters are provided, return all products in the search
         if filters is None:
             return items
 
-        # Filtrar los productos según los argumentos proporcionados
+        # Filter products based on the provided arguments.
         filtered_items = items
 
         if filters.NombreProducto:
@@ -74,5 +74,5 @@ class Query:
         return filtered_items
 
 
-# Crear el esquema GraphQL
+# Create GraphQL Scheme 
 schema = strawberry.Schema(query=Query)

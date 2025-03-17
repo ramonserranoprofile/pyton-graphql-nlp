@@ -6,7 +6,7 @@ def custom_openapi(app: FastAPI):
     if app.openapi_schema:
         return app.openapi_schema
 
-    # Generar el esquema OpenAPI por defecto
+    # Generate default OpenAPI Scheme
     openapi_schema = get_openapi(
         title="Python GraphQL & DeepSeek NLP implementation API",
         version="1.0",
@@ -14,11 +14,11 @@ def custom_openapi(app: FastAPI):
         routes=app.routes,
     )
 
-    # Personalizar el esquema (opcional)
+    # Personalize Scheme (optional)
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     }
 
-    # Guardar el esquema personalizado en la aplicación
+    # save custom Scheme in the app
     app.openapi_schema = openapi_schema
     return app.openapi_schema

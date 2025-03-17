@@ -6,7 +6,7 @@ python-multipart
 pydantic
 python-dotenv
 strawberry-graphql
-spacy
 openai
 gql
 requests_toolbelt
+aiohttp

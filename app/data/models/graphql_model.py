@@ -13,13 +13,13 @@ class ItemType:
     id_ga_tipo_dispositivo: str
     id_ga_fuente_medio: str
     desc_ga_sku_producto: str
-    desc_ga_categoria_producto: Optional[str]  # Campo opcional
+    desc_ga_categoria_producto: Optional[str] 
     fc_agregado_carrito_cant: float
     fc_ingreso_producto_monto: float
-    fc_retirado_carrito_cant: Optional[float]  # Campo opcional
+    fc_retirado_carrito_cant: Optional[float] 
     fc_detalle_producto_cant: float
     fc_producto_cant: float
-    desc_ga_nombre_producto: Optional[str]  # Campo opcional
+    desc_ga_nombre_producto: Optional[str] 
     fc_visualizaciones_pag_cant: float
     flag_pipol: str
     SASASA: str
@@ -32,45 +32,45 @@ class ItemType:
     desc_categoria_prod_principal: str
 
 
-# Cargar los datos desde el CSV
+# Load CSV data
 def load_csv_data(file_path: str) -> List[ItemType]:
     items = []
     with open(file_path, "r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
-            # Convertir los valores numéricos a float (manejar campos vacíos)
+            # Convert to  float numeric values  (handle data empty fields)
             row["fc_agregado_carrito_cant"] = (
                 float(row["fc_agregado_carrito_cant"])
                 if row["fc_agregado_carrito_cant"]
-                else 0.0  # Valor predeterminado si está vacío
+                else 0.0  # default if empty
             )
             row["fc_ingreso_producto_monto"] = (
                 float(row["fc_ingreso_producto_monto"])
                 if row["fc_ingreso_producto_monto"]
-                else 0.0  # Valor predeterminado si está vacío
+                else 0.0  
             )
             row["fc_retirado_carrito_cant"] = (
                 float(row["fc_retirado_carrito_cant"])
                 if row["fc_retirado_carrito_cant"]
-                else None  # Valor predeterminado si está vacío
+                else None  
             )
             row["fc_detalle_producto_cant"] = (
                 float(row["fc_detalle_producto_cant"])
                 if row["fc_detalle_producto_cant"]
-                else 0.0  # Valor predeterminado si está vacío
+                else 0.0 
             )
             row["fc_producto_cant"] = (
                 float(row["fc_producto_cant"])
                 if row["fc_producto_cant"]
-                else 0.0  # Valor predeterminado si está vacío
+                else 0.0  
             )
             row["fc_visualizaciones_pag_cant"] = (
                 float(row["fc_visualizaciones_pag_cant"])
                 if row["fc_visualizaciones_pag_cant"]
-                else 0.0  # Valor predeterminado si está vacío
+                else 0.0  
             )
 
-            # Crear una instancia de ItemType
+            # Create ItemType instance  
             items.append(
                 ItemType(
                     id_tie_fecha_valor=row["id_tie_fecha_valor"],

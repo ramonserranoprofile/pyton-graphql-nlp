@@ -6,7 +6,7 @@ import asyncio
 import os
 import json
 
-# Configurar la API key y la URL base de OpenRouter
+# Set up the API key and base URL for OpenRouter.
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.environ.get("DEEPSEEK_OPENROUTER_API_KEY"),
@@ -17,38 +17,43 @@ def extract_entities_with_deepseek(text: str) -> dict:
     """
     Envía el texto a DeepSeek (a través de OpenRouter) para extraer entidades.
     """
-    # Definir el prompt para DeepSeek
+    # Define the prompt for the selected NLP.
     prompt = f"""
     Extrae del siguiente texto el nombre_del_producto, la marca y la categoría_principal:
-    Texto: "{text}".    
+    Texto: "{text}".  Ofrece al respuesta en formato json válido sin hacer embrace en backSticks ni en llaves adicionales, solo el json.
     """
 
-    # Enviar la solicitud a OpenRouter usando la librería openai
+    # Send the request to OpenRouter using the openai library.
     response = client.chat.completions.create(
         extra_headers={
             "HTTP-Referer": "https://wwww.ramonserranoprofile.com",  # Optional. Site URL for rankings on openrouter.ai.
             "X-Title": "www.ramonserranoprofile.com",  # Optional. Site title for rankings on openrouter.ai.
         },
         extra_body={},
-        model="deepseek/deepseek-r1-zero:free",
+        model="google/gemini-2.0-flash-lite-preview-02-05:free",
+        response_format= {"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
 
-    # Extraer el contenido de la respuesta
+    # Extract the content from the response.
     content = response.choices[0].message.content
-    # Eliminar \boxed y las llaves adicionales de la respuesta
+    # Remove \boxed and any additional braces from the response.
     if content:
         content = content.replace(r'\boxed', '').replace("'", '"').replace("{{", "{").replace("}}", "}").strip()
-
+        # content = content.replace(r'json', '').split("```")[0].strip()
+        # If the response is a valid JSON but enclosed in [] or {}, remove them.
+        content = content.replace("[", "").replace("]", "").strip()
+        if content.startswith("{"):
+            return json.loads(content)
     else:
         print("La respuesta no contiene contenido válido.")
         return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
-    # Verificar si el contenido es un JSON válido
+    # Check if the content is a valid JSON.
     if not content or not content.strip().startswith("{"):
         print("La respuesta no es un JSON válido:", content)
         return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
 
-    # Convertir el contenido a un diccionario
+    # Convert the content to dict
     try:
         entities = json.loads(content)
         return entities
@@ -79,18 +84,18 @@ async def execute_graphql_query(filters):
         return result.get("items", [])
 
 
-async def format_response_as_table(items: list) -> str:
+def format_response_as_table(items: list) -> str:
     """
     Convierte la lista de ítems en una tabla de texto.
     """
     if not items:
         return "No se encontraron resultados."
 
-    # Crear la cabecera de la tabla
+    # Create the table header.
     table = "| ID Fecha Valor | ID Cliente | Nombre Producto | Marca | Categoría | Código Producto | SKU |\n"
     table += "|----------------|------------|-----------------|-------|-----------|-----------------|-----|\n"
 
-    # Agregar cada ítem a la tabla
+    # Add each item to the table.
     for item in items:
         table += (
             f"| {item.get('idTieFechaValor', 'N/A')} | {item.get('idCliCliente', 'N/A')} | "

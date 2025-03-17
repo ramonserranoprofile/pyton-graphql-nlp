@@ -1,0 +1,19 @@
+# escribir los archivos ignorados por docker
+node_modules
+/.venv
+npm-debug.log
+docker-compose.yml
+.dockerignore
+.git
+.gitignore
+.vscode
+.vscodeignore
+LICENSE
+CHANGELOG.md
+CONTRIBUTING.md
+yarn.lock
+yarn-error.log
+package-lock.json
+package.json
+
+
