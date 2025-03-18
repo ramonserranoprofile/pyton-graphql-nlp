@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.data.services.nlp_service import (
     extract_entities_with_deepseek,
     execute_graphql_query,
     format_response_as_table,
 )
-from typing import List
+from typing import List, Dict
+from app.auth.services.auth_service import (
+    get_current_active_user,
+)  # Importar la función de autenticación
 
 nlp_router = APIRouter()
 
@@ -13,7 +16,6 @@ nlp_router = APIRouter()
 # Define Pydantic model to the search query body
 class SearchRequest(BaseModel):
     text: str
-
 
 # Item model (product)
 class Item(BaseModel):
@@ -38,11 +40,12 @@ class SearchResponse(BaseModel):
     tags=["FastAPI+NLP(DeepSeek)"],
     summary="Search products using NLP  Gemini 2.0",
     description="Process the text, extract entities with Gemini 2.0, and finally execute a GraphQL query at '/query' to search for products.",
+    dependencies=[Depends(get_current_active_user)],
 )
 async def search_with_nlp(request: SearchRequest):
     """
-        Endpoint to search for products using natural language.
-        Processes the text, extracts entities, and executes a GraphQL query from the GraphQL endpoint "/query".
+    Endpoint to search for products using natural language.
+    Processes the text, extracts entities, and executes a GraphQL query from the GraphQL endpoint "/query".
     """
     try:
         # Process the text
@@ -63,9 +66,7 @@ async def search_with_nlp(request: SearchRequest):
         print("GraphQL filters:", filters)
 
         # Run GraphQL query with the NLP entities extracted filters
-        items = (
-            await execute_graphql_query(filters) or []
-        )  # Use enpty List if None
+        items = await execute_graphql_query(filters) or []  # Use enpty List if None
         print("Got Ítems:", len(items))
 
         # Format response as a table
