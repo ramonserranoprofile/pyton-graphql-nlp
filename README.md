@@ -81,6 +81,16 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8080
       }
   }
   ```
+  e.g. : {
+  "query": "query GetProducts($filters: ItemFilter) { items(filters: $filters) { idTieFechaValor idCliCliente descGaNombreProducto1 descGaMarcaProducto descCategoriaProdPrincipal descGaCodProducto descGaSkuProducto1 } }",
+  "variables": {
+    "filters": {
+      "NombreProducto": "martillo percutor",
+      "MarcaProducto": "stanley",
+      "CategoriaPrincipal": "herramientas"
+    }
+  }
+}
 
 #### **2. GraphQL Query (GET)**
 - **URL**: `http://localhost:8080/api/query`
@@ -93,8 +103,39 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8080
   {
       "text": "text to search"
   }
+
+  (e.g. { "text": "busco un martillo marca stanley, ¿tienen en stock?" })
+  ```
+### **Auth Service**
+#### **4. Login (POST)**
+- **URL**: `http://localhost:8080/api/login`
+- **Request Body**:
+  ```json
+  {
+      "username": "johndoe",
+      "password": "secret"
+  }
   ```
 
+- **Response**:
+  ```json
+  {
+    "access_token": "<access-token>",
+    "token_type": "bearer"
+  }
+
+  ```
+
+- **Description**: Description: The access token is used to authenticate requests to protected endpoints. While it is not currently required to be manually provided for these endpoints, it is automatically stored in memory and included when accessing protected resources. However, you can also include the token in the headers, which is a valid approach and recommended for ensuring compatibility with future updates.
+
+#### **5. Logout (POST)**
+- **URL**: `http://localhost:8080/api/logout`
+- **Response Body**:
+  ```json
+  {  
+    "message": "Sesión cerrada correctamente"
+  }
+  ```
 ---
 
 ### **Documentation Service**
@@ -188,8 +229,11 @@ services:
 
 ```
 
-```markdown
-
+```json
+{
+  "username": "johndoe",
+  "password": "secret"
+}
 ```
 
 **App Screens Images**
