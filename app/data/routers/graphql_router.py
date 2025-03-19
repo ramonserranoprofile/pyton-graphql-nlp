@@ -8,7 +8,7 @@ import os
 from typing import List, Any
 
 # Importar la función de autenticación
-from app.auth.services.auth_service import get_current_active_user
+from app.auth.services.auth_service import get_current_active_user, check_revoked_token
 from typing import Dict
 
 # Create GraphQL router
@@ -36,10 +36,10 @@ graphql_app = GraphQLRouter(schema, graphiql=True)
 # Add GraphQL routes (protegidas)
 graphql_router.include_router(
     graphql_app,
-    prefix="/query",    
+    prefix="/query",
     responses={404: {"description": "Not found"}},
     tags=["FastAPI/GraphQL(Strawberry)"],
-    dependencies=[Depends(get_current_active_user)],  # Proteger el endpoint
+    dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
 )
 
 
@@ -49,7 +49,7 @@ graphql_router.include_router(
     summary="Strawberry/GraphQL UI Endpoint",
     tags=["FastAPI/GraphQL(Strawberry)"],
     description="Este endpoint permite en el navegador hacer consultas GraphQL sobre los datos con la Query Tool GraphiQL integrated development environment.",
-    dependencies=[Depends(get_current_active_user)],  # Proteger el endpoint
+    dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
 )
 
 
@@ -61,10 +61,6 @@ async def get_graphql_ui():
     from fastapi.responses import RedirectResponse
     # Forzar un return Ok ó status 200
     return RedirectResponse(url="/query", status_code=200)
-    
-    
-    
-    
 
 
 @graphql_router.post(
@@ -73,7 +69,7 @@ async def get_graphql_ui():
     summary="Strawberry/GraphQL Endpoint",
     tags=["FastAPI/GraphQL(Strawberry)"],
     description="Este endpoint permite hacer consultas GraphQL sobre los datos con la Query Tool de Strawberry.",
-    dependencies=[Depends(get_current_active_user)]
+    dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
 )
 async def graphql_query(query_request: QueryRequest):
     # Usar el esquema GraphQL para ejecutar la consulta

@@ -13,14 +13,14 @@ client = OpenAI(
 )
 
 
-def extract_entities_with_deepseek(text: str) -> dict:
+def extract_entities_with_Gemini(text: str) -> dict:
     """
-    Envía el texto a DeepSeek (a través de OpenRouter) para extraer entidades.
+    Envía el texto a Gemini (a través de OpenRouter) para extraer entidades.
     """
     # Define the prompt for the selected NLP.
     prompt = f"""
     Extrae del siguiente texto el nombre_del_producto, la marca y la categoría_principal:
-    Texto: "{text}".  Ofrece al respuesta en formato json válido sin hacer embrace en backSticks ni en llaves adicionales, solo el json.
+    Texto: "{text}".  Ofrece al respuesta en formato json válido sin hacer embrace en backSticks ni en llaves adicionales, solo el json y no asignes valores como None ó null ó palabras reservadas para la programación a nombre_del_producto, marca y categoría_principal, cuando no tenga valor, usa vacio asi "".
     """
 
     # Send the request to OpenRouter using the openai library.

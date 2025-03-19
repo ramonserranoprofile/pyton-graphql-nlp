@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.data.services.nlp_service import (
-    extract_entities_with_deepseek,
+    extract_entities_with_Gemini,
     execute_graphql_query,
     format_response_as_table,
 )
 from typing import List, Dict
 from app.auth.services.auth_service import (
-    get_current_active_user,
+    get_current_active_user, check_revoked_token
 )  # Importar la función de autenticación
 
 nlp_router = APIRouter()
@@ -37,10 +37,10 @@ class SearchResponse(BaseModel):
 @nlp_router.post(
     "/search",
     response_model=SearchResponse,
-    tags=["FastAPI+NLP(DeepSeek)"],
+    tags=["FastAPI+NLP(Gemini)"],
     summary="Search products using NLP  Gemini 2.0",
     description="Process the text, extract entities with Gemini 2.0, and finally execute a GraphQL query at '/query' to search for products.",
-    dependencies=[Depends(get_current_active_user)],
+    dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
 )
 async def search_with_nlp(request: SearchRequest):
     """
@@ -50,7 +50,7 @@ async def search_with_nlp(request: SearchRequest):
     try:
         # Process the text
         entities = (
-            extract_entities_with_deepseek(request.text) or {}
+            extract_entities_with_Gemini(request.text) or {}
         )  # Usar empty dictionary if  None
         print("Entidades extraídas:", entities)
 

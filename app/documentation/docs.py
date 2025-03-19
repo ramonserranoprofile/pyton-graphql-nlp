@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from app.auth.services.auth_service import LoginRequest
 
 
 def custom_openapi(app: FastAPI):
@@ -8,36 +9,38 @@ def custom_openapi(app: FastAPI):
 
     # Generar el esquema OpenAPI predeterminado
     openapi_schema = get_openapi(
-        title="Python GraphQL & DeepSeek NLP implementation API",
+        title="Python GraphQL & Gemini NLP implementation API",
         version="1.0",
-        description="This is a custom OpenAPI 3.0 documentation for the Challenge Python GraphQL & DeepSeek NLP implementation API.",
+        description="This is a custom OpenAPI 3.0 documentation for the Challenge Python GraphQL & Gemini NLP implementation API.",
         routes=app.routes,
     )
 
-    # Personalizar el esquema (opcional)
+    # Agregar logo a la documentación
     openapi_schema["info"]["x-logo"] = {
         "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
     }
 
-    # Agregar la configuración de seguridad JWT
+    # Agregar seguridad JWT como Bearer Token
     if "components" not in openapi_schema:
         openapi_schema["components"] = {}
 
-    openapi_schema["components"]["securitySchemes"] = {
-        "OAuth2PasswordBearer": {
+    if "securitySchemes" not in openapi_schema["components"]:        
+        # esquema oauth2
+        openapi_schema["components"]["securitySchemes"]["OAuth2PasswordBearer"] = {
             "type": "oauth2",
             "flows": {
                 "password": {
-                    "tokenUrl": "token",
-                    "scopes": {},
+                    "tokenUrl": "/token",
+                    "scopes": {}
                 }
-            },
-        }
-    }
+            }
+        } 
+        
 
-    # Especificar que las rutas protegidas requieren autenticación
-    openapi_schema["security"] = [{"OAuth2PasswordBearer": []}]
-
-    # Guardar el esquema personalizado en la aplicación
-    app.openapi_schema = openapi_schema
+    app.openapi_schema = openapi_schema  # Guardar el esquema en cache
     return app.openapi_schema
+
+
+# Asignar la nueva función OpenAPI
+app = FastAPI()
+app.openapi = lambda: custom_openapi(app)

@@ -8,7 +8,7 @@ from app.documentation.docs import custom_openapi
 
 # Crear la aplicación FastAPI
 app = FastAPI(
-    title="Python GraphQL & DeepSeek NLP implementation API",
+    title="Python GraphQL & Gemini NLP implementation API",
     docs_url="/api/docs",
     redoc_url="/api/redoc",    
 )

@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Depends
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from datetime import datetime, timedelta
-from typing import Dict
-
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Annotated    
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from starlette.datastructures import Headers
+import secrets
 # Configuración de JWT
-SECRET_KEY = "tu_secret_key_muy_segura"  # Cambia esto por una clave segura
+# Funcion para crear el Secret Key cadena larga y aleatoria
+SECRET_KEY = secrets.token_hex(32)
+
 ALGORITHM = "HS256"  # Algoritmo de cifrado
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Tiempo de expiración del token
 
@@ -52,6 +55,15 @@ def get_user(db, username: str):
         return UserInDB(**user_dict)
 
 
+def authenticate_user(fake_db, username: str, password: str):
+    user = get_user(fake_db, username)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
 # Función para verificar la contraseña
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -81,25 +93,31 @@ auth_router = APIRouter()
 class TokenRequest(BaseModel):
     access_token: str
     token_type: str
-    
-# Endpoint para generar el token
-@auth_router.post("/token", response_model=TokenRequest ,tags=["Authentication"])
-async def login(login_request: LoginRequest):
-    global current_token
-    user_dict = fake_users_db.get(login_request.username)
-    if not user_dict:
-        raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
 
-    user = UserInDB(**user_dict)
-    if not verify_password(login_request.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
+
+@auth_router.post("/token", response_model=TokenRequest, tags=["Authentication"])
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> TokenRequest:
+    """
+    Obtiene un token de acceso usando OAuth2 con contraseña.
+    """
+    global current_token
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     current_token = access_token  # Almacenar el token en memoria
-    return {"access_token": access_token, "token_type": "bearer"}
+    return TokenRequest(access_token=access_token, token_type="bearer")
 
 
 # Función para obtener el usuario actual
@@ -133,32 +151,111 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 class LogoutResponse(BaseModel):
     message: str
 
-# Ruta para cerrar sesión (logout)
-@auth_router.post("/logout", response_model=LogoutResponse ,tags=["Authentication"])
-async def logout(current_user: User = Depends(get_current_active_user)):
+
+# Lista en memoria de tokens revocados
+revoked_tokens = set()
+
+# Endpoint para cerrar sesión
+@auth_router.post("/logout", response_model=LogoutResponse, tags=["Authentication"])
+async def logout(
+    token: str = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_active_user),
+):
+
+    """
+    Cierra sesión eliminando el token en memoria y agregándolo a la lista de tokens revocados.
+    """
     global current_token
-    if current_token:
-        current_token = None  # Eliminar el token de la memoria
-        return {"message": "Sesión cerrada correctamente"}
-    else:
+
+    if token in revoked_tokens:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No hay una sesión activa",
+            detail="El token ya ha sido revocado",
         )
+
+    # Revocar el token
+    revoked_tokens.add(token)
+
+    # Eliminar el token en memoria si coincide con el que se está revocando
+    if current_token == token:
+        current_token = None
+
+    return LogoutResponse(message="Sesión cerrada correctamente")
+
+
+# Middleware para verificar si un token está revocado o en token no es el que esta en memoria antes de acceder a recursos protegidos
+async def check_revoked_token(token: str = Depends(oauth2_scheme)):
+    """
+    Verifica si el token está revocado o no es válido.
+    """
+    global current_token
+
+    # Verificar si el token está en la lista de tokens revocados
+    if token in revoked_tokens:
+        # Si el token está revocado, eliminarlo de la memoria (si es el token actual)
+        if current_token == token:
+            current_token = None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token revocado",
+        )
+
+    # Verificar si el token no coincide con el token en memoria (opcional)
+    if current_token and token != current_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token no coincide con el token en memoria",
+        )
+
+    return token
 
 
 # Middleware para agregar el token automáticamente a las solicitudes protegidas
 async def add_token_to_request(request: Request, call_next):
+    global current_token
+
     if current_token:
-        # Agregar el token a los encabezados de la solicitud
-        request.headers.__dict__["_list"].append(
-            (b"authorization", f"Bearer {current_token}".encode())
-        )
+        try:
+            # Decodificar el token para verificar si ha expirado
+            payload = jwt.decode(current_token, SECRET_KEY, algorithms=[ALGORITHM])
+            expire = payload.get("exp")
+            if expire and datetime.now(timezone.utc) > datetime.fromtimestamp(expire, tz=timezone.utc):
+                # Si el token ha expirado, eliminarlo de la memoria
+                current_token = None
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token expirado",
+                )                    
+        except JWTError:
+            # Si hay un error al decodificar el token, eliminarlo de la memoria
+            current_token = None
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido",
+            )
+
+        # Crear una copia de los encabezados existentes
+        headers = dict(request.headers)
+
+        # Agregar el encabezado de autorización
+        headers["authorization"] = f"Bearer {current_token}"
+
+        # Crear un nuevo objeto Request con los encabezados modificados
+        request._headers = Headers(headers)
+        request.scope.update(headers=request.headers.raw)
+
     response = await call_next(request)
     return response
 
 
 # Ruta protegida
-@auth_router.get("/users/me", tags=["Current Active User"], response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+@auth_router.get(
+    "/users/me",
+    tags=["Current Active User"],
+    response_model=User,
+    dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
+)
+async def read_users_me(
+    current_user: Annotated[User, [Depends(get_current_active_user), Depends(check_revoked_token)]],
+):
     return current_user
