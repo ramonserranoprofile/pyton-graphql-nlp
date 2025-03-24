@@ -3,8 +3,11 @@ from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 import asyncio
 from typing import List, Dict, Optional
+from dotenv import load_dotenv
 import os
 import json
+
+load_dotenv()
 
 # Set up the API key and base URL for OpenRouter.
 client = OpenAI(

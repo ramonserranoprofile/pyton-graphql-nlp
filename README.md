@@ -48,7 +48,7 @@ pip install -r requirements.txt
 ### **2. Run the Project**
 #### **Development Environment**
 ```bash
-uvicorn app.main:app --reload --port 8080
+uvicorn main:app --reload --port 8080
 ```
 
 #### **Docker Environment**
@@ -109,13 +109,15 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8080
 ### **Auth Service**
 #### **4. Login (POST)**
 - **URL**: `http://localhost:8080/api/login`
-- **Request Body**:
+
+- FormData:
+**Request Body**:
   ```json
   {
-      "username": "johndoe",
-      "password": "secret"
+    "username": "johndoe",
+    "password": "secret"
   }
-  ```
+  ```  
 
 - **Response**:
   ```json
