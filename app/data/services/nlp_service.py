@@ -33,7 +33,7 @@ def extract_entities_with_Gemini(text: str) -> dict:
             "X-Title": "www.ramonserranoprofile.com",  # Optional. Site title for rankings on openrouter.ai.
         },
         extra_body={},
-        model="google/gemini-2.0-flash-lite-preview-02-05:free",
+        model="google/gemini-2.5-pro-exp-03-25:free",
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
