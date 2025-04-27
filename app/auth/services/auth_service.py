@@ -1,12 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Depends
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    Request,
+    Depends,
+    Response,
+)
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Annotated    
+from typing import Dict, Annotated
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from starlette.datastructures import Headers
 import secrets
+
 # Configuración de JWT
 # Funcion para crear el Secret Key cadena larga y aleatoria
 SECRET_KEY = secrets.token_hex(32)
@@ -18,7 +27,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Tiempo de expiración del token
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # Configurar el esquema OAuth2
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+
+async def get_token(request: Request, token: str = Depends(oauth2_scheme)):
+    if not token:
+        token = request.cookies.get("access_token", "")
+        if token and not token.startswith("Bearer "):
+            token = token  # Agrega "Bearer " si no lo tiene
+    return token
+
 
 # Base de datos falsa con contraseñas hasheadas
 fake_users_db = {
@@ -32,7 +50,7 @@ fake_users_db = {
 }
 
 # Almacenamiento en memoria del token
-current_token = None
+# current_token = None
 
 
 # Modelo de usuario (sin contraseña)
@@ -73,9 +91,9 @@ def verify_password(plain_password, hashed_password):
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -89,6 +107,8 @@ class LoginRequest(BaseModel):
 
 # Crear el router para la autenticación
 auth_router = APIRouter()
+
+
 # Modelo para la respuesta del token
 class TokenRequest(BaseModel):
     access_token: str
@@ -96,15 +116,36 @@ class TokenRequest(BaseModel):
 
 
 @auth_router.post("/token", response_model=TokenRequest, tags=["Authentication"])
-async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> TokenRequest:
-    """
-    Obtiene un token de acceso usando OAuth2 con contraseña.
-    """
-    global current_token
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+# async def login_for_access_token(
+#     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+# ) -> TokenRequest:
+#     """
+#     Obtiene un token de acceso usando OAuth2 con contraseña.
+#     """
+#     global current_token
+#     user = authenticate_user(fake_users_db, form_data.username, form_data.password)
 
+#     if not user:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Incorrect username or password",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+
+
+#     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+#     access_token = create_access_token(
+#         data={"sub": user.username}, expires_delta=access_token_expires
+#     )
+#     current_token = access_token  # Almacenar el token en memoria
+#     return TokenRequest(access_token=access_token, token_type="bearer")
+
+
+async def login_for_access_token(
+    response: Response,  # Necesario para setear cookies
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+):
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,29 +157,39 @@ async def login_for_access_token(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    current_token = access_token  # Almacenar el token en memoria
+
+    # Setear cookie HTTP-only y Secure
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,  # Solo en HTTPS
+        samesite="lax",  # Protección básica contra CSRF
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
     return TokenRequest(access_token=access_token, token_type="bearer")
 
 
 # Función para obtener el usuario actual
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Credenciales de autenticación inválidas",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+async def get_current_user(
+    token: str = Depends(get_token),
+):  # Usa get_token personalizado
+    if not token:
+        raise HTTPException(status_code=401, detail="Token no proporcionado")
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str | None = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Token inválido")
 
-    user = get_user(fake_users_db, username)
-    if user is None:
-        raise credentials_exception
-    return user
+        user = get_user(fake_users_db, username)
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        return user
+
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Token inválido: {str(e)}")
 
 
 # Función para verificar si el usuario está activo
@@ -146,6 +197,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Usuario inactivo")
     return current_user
+
 
 # Modelo para la respuesta del logout
 class LogoutResponse(BaseModel):
@@ -155,17 +207,17 @@ class LogoutResponse(BaseModel):
 # Lista en memoria de tokens revocados
 revoked_tokens = set()
 
+
 # Endpoint para cerrar sesión
 @auth_router.post("/logout", response_model=LogoutResponse, tags=["Authentication"])
 async def logout(
+    response: Response,  # Add Response parameter
     token: str = Depends(oauth2_scheme),
     current_user: User = Depends(get_current_active_user),
 ):
-
     """
     Cierra sesión eliminando el token en memoria y agregándolo a la lista de tokens revocados.
     """
-    global current_token
 
     if token in revoked_tokens:
         raise HTTPException(
@@ -176,76 +228,37 @@ async def logout(
     # Revocar el token
     revoked_tokens.add(token)
 
-    # Eliminar el token en memoria si coincide con el que se está revocando
-    if current_token == token:
-        current_token = None
+    response.delete_cookie("access_token")
 
     return LogoutResponse(message="Sesión cerrada correctamente")
 
 
 # Middleware para verificar si un token está revocado o en token no es el que esta en memoria antes de acceder a recursos protegidos
-async def check_revoked_token(token: str = Depends(oauth2_scheme)):
+async def check_revoked_token(request: Request, token: str = Depends(oauth2_scheme)):
     """
     Verifica si el token está revocado o no es válido.
     """
-    global current_token
-
-    # Verificar si el token está en la lista de tokens revocados
     if token in revoked_tokens:
-        # Si el token está revocado, eliminarlo de la memoria (si es el token actual)
-        if current_token == token:
-            current_token = None
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token revocado",
+            headers={"Authorization": "Bearer"},
         )
-
-    # Verificar si el token no coincide con el token en memoria (opcional)
-    if current_token and token != current_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token no coincide con el token en memoria",
-        )
-
     return token
 
 
-# Middleware para agregar el token automáticamente a las solicitudes protegidas
 async def add_token_to_request(request: Request, call_next):
-    global current_token
+    token = request.cookies.get("access_token", "")
 
-    if current_token:
-        try:
-            # Decodificar el token para verificar si ha expirado
-            payload = jwt.decode(current_token, SECRET_KEY, algorithms=[ALGORITHM])
-            expire = payload.get("exp")
-            if expire and datetime.now(timezone.utc) > datetime.fromtimestamp(expire, tz=timezone.utc):
-                # Si el token ha expirado, eliminarlo de la memoria
-                current_token = None
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token expirado",
-                )                    
-        except JWTError:
-            # Si hay un error al decodificar el token, eliminarlo de la memoria
-            current_token = None
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token inválido",
-            )
-
-        # Crear una copia de los encabezados existentes
+    if token:
+        # Inyectar SOLO el token (sin "Bearer") en el header
         headers = dict(request.headers)
+        headers["authorization"] = token  # ¡Sin "Bearer" aquí!
 
-        # Agregar el encabezado de autorización
-        headers["authorization"] = f"Bearer {current_token}"
-
-        # Crear un nuevo objeto Request con los encabezados modificados
         request._headers = Headers(headers)
         request.scope.update(headers=request.headers.raw)
 
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
 
 # Ruta protegida
@@ -256,6 +269,6 @@ async def add_token_to_request(request: Request, call_next):
     dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
 )
 async def read_users_me(
-    current_user: Annotated[User, [Depends(get_current_active_user), Depends(check_revoked_token)]],
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     return current_user

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from app.data.services.nlp_service import (
     extract_entities_with_Gemini,
@@ -7,7 +7,8 @@ from app.data.services.nlp_service import (
 )
 from typing import List, Dict
 from app.auth.services.auth_service import (
-    get_current_active_user, check_revoked_token
+    get_current_active_user,
+    check_revoked_token,
 )  # Importar la función de autenticación
 
 nlp_router = APIRouter()
@@ -16,6 +17,7 @@ nlp_router = APIRouter()
 # Define Pydantic model to the search query body
 class SearchRequest(BaseModel):
     text: str
+
 
 # Item model (product)
 class Item(BaseModel):
@@ -42,7 +44,10 @@ class SearchResponse(BaseModel):
     description="Process the text, extract entities with Gemini 2.0, and finally execute a GraphQL query at '/query' to search for products.",
     dependencies=[Depends(get_current_active_user), Depends(check_revoked_token)],
 )
-async def search_with_nlp(request: SearchRequest):
+async def search_with_nlp(
+    request_body: SearchRequest,
+    request: Request,  # Agregar Request como parámetro
+):
     """
     Endpoint to search for products using natural language.
     Processes the text, extracts entities, and executes a GraphQL query from the GraphQL endpoint "/query".
@@ -50,7 +55,7 @@ async def search_with_nlp(request: SearchRequest):
     try:
         # Process the text
         entities = (
-            extract_entities_with_Gemini(request.text) or {}
+            extract_entities_with_Gemini(request_body.text) or {}
         )  # Usar empty dictionary if  None
         print("Entidades extraídas:", entities)
 
@@ -66,7 +71,9 @@ async def search_with_nlp(request: SearchRequest):
         print("GraphQL filters:", filters)
 
         # Run GraphQL query with the NLP entities extracted filters
-        items = await execute_graphql_query(filters) or []  # Use enpty List if None
+        items = (
+            await execute_graphql_query(filters, request) or []
+        )  # Use empty List if None
         print("Got Ítems:", len(items))
 
         # Format response as a table

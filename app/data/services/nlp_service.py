@@ -3,6 +3,7 @@ from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 import asyncio
 from typing import List, Dict, Optional
+from fastapi import Request
 from dotenv import load_dotenv
 import os
 import json
@@ -33,7 +34,7 @@ def extract_entities_with_Gemini(text: str) -> dict:
             "X-Title": "www.ramonserranoprofile.com",  # Optional. Site title for rankings on openrouter.ai.
         },
         extra_body={},
-        model="google/gemini-2.5-pro-exp-03-25:free",
+        model="google/gemini-2.0-flash-exp:free",
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
@@ -42,7 +43,13 @@ def extract_entities_with_Gemini(text: str) -> dict:
     content = response.choices[0].message.content
     # Remove \boxed and any additional braces from the response.
     if content:
-        content = content.replace(r'\boxed', '').replace("'", '"').replace("{{", "{").replace("}}", "}").strip()
+        content = (
+            content.replace(r"\boxed", "")
+            .replace("'", '"')
+            .replace("{{", "{")
+            .replace("}}", "}")
+            .strip()
+        )
         # content = content.replace(r'json', '').split("```")[0].strip()
         # If the response is a valid JSON but enclosed in [] or {}, remove them.
         content = content.replace("[", "").replace("]", "").strip()
@@ -65,20 +72,23 @@ def extract_entities_with_Gemini(text: str) -> dict:
         return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
 
 
-async def execute_graphql_query(filters: Dict) -> Optional[List]:
+async def execute_graphql_query(filters: Dict, request: Request) -> Optional[List]:
     """
     Ejecuta una consulta GraphQL con los filtros proporcionados.
     """
     # endpoint GraphQL
     url = "http://127.0.0.1:8080/api/query"
 
-    # Auth Token 
-    token = "token_here"
+    # Auth Token
+
+    token = request.cookies.get("access_token", "")
 
     # Configurate transport with auth token
     transport = AIOHTTPTransport(
         url=url,
-        #headers={"Authorization": f"Bearer {token}"},  # Incluir el token en los headers
+        headers=(
+            {"Authorization": "Bearer " + token} if token else {}
+        ),  # Incluir el token en los headers
     )
 
     # Create client GraphQL
