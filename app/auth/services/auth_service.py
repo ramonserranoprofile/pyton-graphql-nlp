@@ -150,7 +150,7 @@ async def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"Authorization": "Bearer"},
         )
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -253,7 +253,7 @@ async def add_token_to_request(request: Request, call_next):
     if token:
         # Inyectar SOLO el token (sin "Bearer") en el header
         headers = dict(request.headers)
-        headers["authorization"] = token  # ¡Sin "Bearer" aquí!
+        headers["Authorization"] = token  # ¡Sin "Bearer" aquí!
 
         request._headers = Headers(headers)
         request.scope.update(headers=request.headers.raw)
