@@ -25,7 +25,7 @@ def extract_entities_with_Gemini(text: str) -> dict:
     # Define the prompt for the selected NLP.
     prompt = f"""
     Extrae del siguiente texto el nombre_del_producto, la marca y la categoría_principal:
-    Texto: "{text}".  Ofrece al respuesta en formato json válido sin hacer embrace en backSticks ni en llaves adicionales, solo el json y no asignes valores como None ó null ó palabras reservadas para la programación a nombre_del_producto, marca y categoría_principal, cuando no tenga valor, usa vacio asi "".
+    Texto: "{text}".  Ofrece al respuesta en formato json válido sin hacer embrace en backSticks ni en llaves adicionales, solo el json y no asignes valores como None ó null ó palabras reservadas para la programación a nombre_del_producto, marca y categoría_principal, cuando no tenga valor, usa vacio asi ""; de no estar la categoría_principal explicitamente en el texto, debe ser inferida a partir del nombre_del_producto y la marca.
     """
 
     # Send the request to OpenRouter using the openai library.
