@@ -150,20 +150,31 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8080
 
 ## **Project Structure**
 ```plaintext
-python-graphql-nlp/
-├── app/
-│   ├── auth/
-│   │   ├── routers/
-│   │   ├── models/
-│   │   └── services/
-│   ├── data/
-│   │   ├── routers/
-│   │   ├── models/
-│   │   └── services/
-│   ├── documentation/
-│── main.py   
+pyton-graphql-nlp
+├── app
+│   │   └── main.cpython-312.pyc
+│   ├── auth
+│   │   └── services
+│   │       └── auth_service.py
+│   ├── data
+│   │   ├── models
+│   │   │   └── graphql_model.py
+│   │   ├── resources
+│   │   │   └── Data example - Python Coding Challenge - GraphQL.csv
+│   │   ├── routers
+│   │   │   ├── graphql_router.py
+│   │   │   └── nlp_router.py
+│   │   └── services
+│   │       ├── graphql_service.py
+│   │       └── nlp_service.py
+│   ├── documentation
+│   │   └── docs.py
+│   └── static
+│       └── images
 ├── Dockerfile
+├── README.md│   
 ├── docker-compose.yml
+├── main.py
 └── requirements.txt
 ```
 
@@ -268,3 +279,5 @@ services:
     <td><img src="./app/static/images/Captura de pantalla 2025-03-17 094342.png" width="195"></td>    
   </tr>
 </table>
+
+

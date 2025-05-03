@@ -1,3 +1,4 @@
+import re
 from openai import OpenAI
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -34,7 +35,7 @@ def extract_entities_with_Gemini(text: str) -> dict:
             "X-Title": "www.ramonserranoprofile.com",  # Optional. Site title for rankings on openrouter.ai.
         },
         extra_body={},
-        model="google/gemini-2.0-flash-exp:free",
+        model="qwen/qwq-32b:free",
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
@@ -55,13 +56,22 @@ def extract_entities_with_Gemini(text: str) -> dict:
         content = content.replace("[", "").replace("]", "").strip()
         if content.startswith("{"):
             return json.loads(content)
-    else:
-        print("La respuesta no contiene contenido válido.")
-        return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
+
     # Check if the content is a valid JSON.
-    if not content or not content.strip().startswith("{"):
+    if content is None or not content.strip().startswith("{"):
         print("La respuesta no es un JSON válido:", content)
-        return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
+        # buscar el JSON en el contenido
+        if content:
+            match = re.search(r"\{[\s\S]*?\}", content)
+            if match:
+                json_str = match.group()
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    pass
+        else:
+            print("El contenido es None o vacío.")
+            return {"nombre_del_producto": "", "marca": "", "categoría_principal": ""}
 
     # Convert the content to dict
     try:
